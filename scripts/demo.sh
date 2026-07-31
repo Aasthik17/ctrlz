@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 # Scripted walkthrough of the core ctrlz scenario, paced for recording with
-# asciinema, ttygif, or any terminal screen recorder. Run it as-is for the
-# launch demo: `ctrlz watch` wraps a stand-in "agent" that writes some files
-# and then wipes the directory, and `ctrlz undo` brings it all back.
+# asciinema, ttygif, or any terminal screen recorder. It opens with the real
+# install command a first-time user would run, then `ctrlz watch` wraps a
+# stand-in "agent" that writes some files and wipes the directory, and
+# `ctrlz undo` brings it all back.
 #
-# Requires `ctrlz` on PATH (`go install ./cmd/ctrlz` or `make build`).
+# Override CTRLZ_DEMO_INSTALL_CMD to swap in a local install for rehearsal
+# takes before the module is public — the default is the command real users
+# will actually run, per the README. The script cd's into the demo directory
+# before running this, so a relative path won't resolve; use an absolute one,
+# e.g. from the repo root:
+#   CTRLZ_DEMO_INSTALL_CMD="go install $(pwd)/cmd/ctrlz" bash scripts/demo.sh
 set -euo pipefail
 
-if ! command -v ctrlz >/dev/null 2>&1; then
-	echo "ctrlz not found on PATH. Build it first: go install ./cmd/ctrlz (or make build)." >&2
-	exit 1
-fi
+INSTALL_CMD="${CTRLZ_DEMO_INSTALL_CMD:-go install github.com/Aasthik17/ctrlz/cmd/ctrlz@latest}"
 
 # Override with CTRLZ_DEMO_DIR for a clean, readable path when recording
 # (e.g. CTRLZ_DEMO_DIR=~/agent-project) — the default mktemp path is fine
@@ -28,6 +31,14 @@ type_cmd() {
 	printf '\n\033[1;36m$ %s\033[0m\n' "$*"
 	sleep 1
 }
+
+type_cmd "$INSTALL_CMD"
+eval "$INSTALL_CMD"
+
+if ! command -v ctrlz >/dev/null 2>&1; then
+	echo "ctrlz installed but not on PATH. Make sure \$(go env GOPATH)/bin is in your PATH." >&2
+	exit 1
+fi
 
 type_cmd "cd $(basename "$DEMO_DIR")"
 
