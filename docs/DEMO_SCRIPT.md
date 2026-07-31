@@ -6,11 +6,25 @@ README, right after the tagline (see the launch checklist in
 work on screen — this document is what to say/show around it, not a
 replacement for it.
 
-**Target length: 30–40 seconds.** Long enough to land the "it's really
-gone, then it's really back" beat; short enough that nobody scrubs past it.
+**Target length: 35–45 seconds.** Long enough to land the install beat and
+the "it's really gone, then it's really back" beat; short enough that
+nobody scrubs past it.
 
 ## Before you hit record
 
+- **This shot requires the repo to actually be public.** The demo now opens
+  with the real install command from the README —
+  `go install github.com/Aasthik17/ctrlz/cmd/ctrlz@latest` — which resolves
+  against the live `github.com/Aasthik17/ctrlz` module. If you're recording
+  before the repo is pushed/public, that command will fail on camera.
+  Record this after launch, not before. (For rehearsal takes against local
+  changes, override with `CTRLZ_DEMO_INSTALL_CMD` — see the comment at the
+  top of `scripts/demo.sh`.)
+- **Pre-warm the module cache immediately before recording.** Run the exact
+  install command once, off-camera, right before you hit record. `go
+  install ... @latest` then resolves near-instantly on the actual take
+  instead of hanging on a fresh network fetch — which is also honestly how
+  it behaves for most real users after the first install.
 - **Pick a clean path.** Run with `CTRLZ_DEMO_DIR=~/agent-project bash
   scripts/demo.sh` instead of the default — the default uses `mktemp`,
   which produces an ugly `/var/folders/.../ctrlz-demo.XXXX` path that's
@@ -32,9 +46,9 @@ gone, then it's really back" beat; short enough that nobody scrubs past it.
   rather have a real video file. Either way, run the script live rather
   than typing along manually — the pacing is already tuned via the `sleep`
   calls, and a live take avoids retyping mistakes on camera.
-- **Do one dry run off-camera first.** Confirms `ctrlz` is on `PATH`
-  (`go install ./cmd/ctrlz` or `make build`) and that the timing still
-  feels right before you're actually recording.
+- **Do one dry run off-camera first.** Confirms the install command
+  resolves, `ctrlz` ends up on `PATH`, and the timing still feels right
+  before you're actually recording.
 
 ## The shot list
 
@@ -56,7 +70,24 @@ $ CTRLZ_DEMO_DIR=~/agent-project bash scripts/demo.sh
 
 ---
 
-**[0:02 – 0:03]**
+**[0:02 – 0:04] The install.**
+
+```
+$ go install github.com/Aasthik17/ctrlz/cmd/ctrlz@latest
+```
+
+This is the real command from the README's Install section, not a
+stand-in — this is how anyone actually gets `ctrlz` onto their machine.
+*(Optional caption: "First, install it.")* Since network resolution time
+is unpredictable and not the point of the demo, this is the one shot
+that's fine to jump-cut past if it hangs on screen for more than a
+second or two on the actual take — pre-warming the module cache
+off-camera beforehand (see "Before you hit record") should make that
+unnecessary. Don't linger here; it's setup, not payoff.
+
+---
+
+**[0:04 – 0:05]**
 
 ```
 $ cd agent-project
@@ -67,7 +98,7 @@ special is about to happen — that's the point.
 
 ---
 
-**[0:03 – 0:04]**
+**[0:05 – 0:06]**
 
 ```
 $ ctrlz watch -- ./agent.sh
@@ -80,7 +111,7 @@ whatever the agent's own launch command is.
 
 ---
 
-**[0:04 – 0:06]**
+**[0:06 – 0:08]**
 
 ```
 writing project files...
@@ -94,7 +125,7 @@ showing the files existing, then cut back — not required, but sells the
 
 ---
 
-**[0:06 – 0:08] The turn.**
+**[0:08 – 0:10] The turn.**
 
 ```
 oops: about to run a destructive cleanup command...
@@ -106,7 +137,7 @@ payoff, don't rush past it.
 
 ---
 
-**[0:08 – 0:09] The damage.**
+**[0:10 – 0:11] The damage.**
 
 ```
 ...and it's gone.
@@ -116,7 +147,7 @@ payoff, don't rush past it.
 
 ---
 
-**[0:09 – 0:10]**
+**[0:11 – 0:12]**
 
 ```
 $ ls -la
@@ -130,7 +161,7 @@ this is the moment the demo has to sell. Don't cut away early.
 
 ---
 
-**[0:10 – 0:11] The undo.**
+**[0:12 – 0:13] The undo.**
 
 ```
 $ ctrlz undo
@@ -146,7 +177,7 @@ confirmation first).
 
 ---
 
-**[0:11 – 0:13] The payoff.**
+**[0:13 – 0:15] The payoff.**
 
 ```
 $ ls -la
@@ -172,7 +203,7 @@ agents." Same line as the README tagline, for consistency.)*
 
 ---
 
-**[0:13] Cut.** Don't let the terminal sit idle after the payoff — end on
+**[0:15] Cut.** Don't let the terminal sit idle after the payoff — end on
 the restored content, not on a blinking cursor.
 
 ## What NOT to include
@@ -185,7 +216,9 @@ the restored content, not on a blinking cursor.
   then narrate around them.
 - Don't speed up the empty-directory or restored-content shots to save
   time. Those two seconds are the entire argument for the tool; everything
-  else is context.
+  else is context. The install shot is the opposite — it's fine, even
+  encouraged, to jump-cut past a slow `go install` resolution so it doesn't
+  eat into the budget those two beats need.
 
 ## After recording
 
