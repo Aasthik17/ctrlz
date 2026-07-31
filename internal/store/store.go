@@ -150,6 +150,31 @@ func acquireRegistryLock(dir string) (release func(), err error) {
 	}
 }
 
+// Lookup resolves path and returns its registered project. Unlike
+// LookupOrCreate, it never creates one: read-oriented commands (log, diff,
+// status, undo) must fail clearly on an unregistered path rather than
+// silently starting to track it.
+func Lookup(path string) (*Project, error) {
+	resolved, err := ResolvePath(path)
+	if err != nil {
+		return nil, err
+	}
+
+	reg, err := loadRegistry()
+	if err != nil {
+		return nil, err
+	}
+
+	for id, p := range reg.Projects {
+		if p.Path == resolved {
+			p.ID = id
+			return p, nil
+		}
+	}
+
+	return nil, fmt.Errorf("%s is not tracked by ctrlz yet (run `ctrlz init` or `ctrlz watch` first)", resolved)
+}
+
 // LookupOrCreate resolves path and returns its registered project, creating
 // a new bare store and registry entry if one doesn't already exist. The
 // second return value reports whether a new project was created.
