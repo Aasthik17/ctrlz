@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -69,6 +70,40 @@ func ProjectStorePath(id string) (string, error) {
 		return "", err
 	}
 	return filepath.Join(pd, id, "store"), nil
+}
+
+// WatchLockPath returns the path to a project's watch.lock file, present
+// only while a watch process is active for it (SPEC.md section 1).
+func WatchLockPath(id string) (string, error) {
+	pd, err := projectsDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(pd, id, "watch.lock"), nil
+}
+
+// StoreSize returns the total on-disk size, in bytes, of a project's bare
+// git store.
+func StoreSize(storePath string) (int64, error) {
+	var total int64
+	err := filepath.WalkDir(storePath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		total += info.Size()
+		return nil
+	})
+	if err != nil {
+		return 0, fmt.Errorf("measuring store size: %w", err)
+	}
+	return total, nil
 }
 
 // ResolvePath resolves path to the absolute, symlink-free form used as the
