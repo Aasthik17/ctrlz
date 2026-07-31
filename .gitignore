@@ -1,0 +1,5 @@
+/ctrlz
+/bin/
+*.test
+.DS_Store
+/docs/IMPLEMENTATION_PLAN.md
