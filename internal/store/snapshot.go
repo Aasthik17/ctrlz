@@ -120,6 +120,23 @@ func TakeSnapshot(storePath, workTree, reason string) (hash string, taken bool, 
 	return strings.TrimSpace(out), true, nil
 }
 
+// SnapshotCount returns the total number of snapshots in a project's store.
+// A project with no snapshots yet returns 0, not an error.
+func SnapshotCount(storePath string) (int, error) {
+	out, err := runGitOutput(storePath, "", nil, "rev-list", "--count", "HEAD")
+	if err != nil {
+		if isEmptyRepoError(err) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("counting snapshots: %w", err)
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(out))
+	if err != nil {
+		return 0, fmt.Errorf("parsing snapshot count: %w", err)
+	}
+	return n, nil
+}
+
 // ListSnapshots returns a project's snapshots newest-first. limit <= 0 means
 // unlimited. A project with no snapshots yet returns an empty slice, not an
 // error.
@@ -217,9 +234,19 @@ type UndoPlan struct {
 // PrepareUndo performs the non-destructive steps of an undo (SPEC.md
 // section 3, steps 1-4): it captures the current HEAD, unconditionally
 // takes a pre-undo safety snapshot of however messy the current state is,
-// resolves the target ref (the most recent snapshot by default, or --to),
-// and summarizes what applying the plan would change. It does not touch
-// workTree; call ApplyUndo with the returned Target to actually revert.
+// resolves the target ref, and summarizes what applying the plan would
+// change. It does not touch workTree; call ApplyUndo with the returned
+// Target to actually revert.
+//
+// Without --to, the default target is usually the pre-mess HEAD (SPEC.md's
+// "original"). But if nothing needed staging in the pre-undo snapshot,
+// original is itself already the most recently recorded state — most
+// commonly because `watch`'s own final snapshot already captured whatever
+// an agent just destroyed, since it snapshots unconditionally, with no
+// concept of "good" vs "bad" content. Reverting to a state that already
+// matches HEAD would be a no-op, defeating the entire point of undo, so in
+// that case the target falls back to the snapshot before it instead.
+
 func PrepareUndo(storePath, workTree, to string) (*UndoPlan, error) {
 	head, err := runGitOutput(storePath, "", nil, "rev-parse", "HEAD")
 	if err != nil {
@@ -235,11 +262,28 @@ func PrepareUndo(storePath, workTree, to string) (*UndoPlan, error) {
 		return nil, fmt.Errorf("taking pre-undo safety snapshot: %w", err)
 	}
 
-	target := original
-	if to != "" {
+	var target string
+	switch {
+	case to != "":
 		resolved, err := runGitOutput(storePath, "", nil, "rev-parse", to)
 		if err != nil {
 			return nil, fmt.Errorf("resolving --to %s: %w", to, err)
+		}
+		target = strings.TrimSpace(resolved)
+	case preUndoTaken:
+		// The current mess wasn't recorded until the pre-undo commit just
+		// above, so original (HEAD as it was before that commit) is still
+		// the last good state.
+		target = original
+	default:
+		// Nothing changed since original, meaning original itself is
+		// already the most recently recorded state (e.g. a prior `watch`
+		// tick, or a prior undo, already snapshotted it). "Reverting to
+		// the most recent snapshot" would then be a no-op, so fall back to
+		// the snapshot before it.
+		resolved, err := runGitOutput(storePath, "", nil, "rev-parse", original+"~1")
+		if err != nil {
+			return nil, errors.New("already at the oldest snapshot, nothing earlier to undo to")
 		}
 		target = strings.TrimSpace(resolved)
 	}

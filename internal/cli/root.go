@@ -5,10 +5,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// version is overridden at build time via -ldflags "-X .../cli.version=...".
+var version = "dev"
+
 // rootCmd is the base command; every subcommand attaches to this.
 var rootCmd = &cobra.Command{
-	Use:   "ctrlz",
-	Short: "An undo button for AI coding agents",
+	Use:     "ctrlz",
+	Short:   "An undo button for AI coding agents",
+	Version: version,
 	Long: `ctrlz is an undo button for AI coding agents.
 
 It runs underneath any coding agent (Claude Code, Cursor, Codex CLI, Cline,

@@ -91,6 +91,75 @@ func TestUndoCoreScenario(t *testing.T) {
 	}
 }
 
+// TestUndoFallsBackWhenHeadAlreadyIsTheMess reproduces a real bug found
+// while building the launch demo: `watch` snapshots unconditionally, with
+// no concept of "good" vs "bad" content, so its own final snapshot commonly
+// captures whatever an agent just destroyed as the newest commit. Reverting
+// to "the most recent snapshot" in that case must not be a no-op.
+func TestUndoFallsBackWhenHeadAlreadyIsTheMess(t *testing.T) {
+	storePath, workTree := newTestStore(t)
+	aPath := filepath.Join(workTree, "a.txt")
+
+	writeFile(t, aPath, "good content")
+	goodHash, taken, err := TakeSnapshot(storePath, workTree, ReasonInterval)
+	if err != nil || !taken {
+		t.Fatalf("initial snapshot: taken=%v err=%v", taken, err)
+	}
+
+	// Simulate `watch` already snapshotting the destructive action, e.g. as
+	// its unconditional final snapshot when the wrapped command exits.
+	if err := os.Remove(aPath); err != nil {
+		t.Fatal(err)
+	}
+	messyHash, taken, err := TakeSnapshot(storePath, workTree, ReasonInterval)
+	if err != nil || !taken {
+		t.Fatalf("simulated watch snapshot of the deletion: taken=%v err=%v", taken, err)
+	}
+
+	// Now the deletion is already HEAD. A plain `ctrlz undo`, with nothing
+	// changed on disk since, must still restore a.txt by falling back to
+	// the snapshot before the mess.
+	plan, err := PrepareUndo(storePath, workTree, "")
+	if err != nil {
+		t.Fatalf("PrepareUndo: %v", err)
+	}
+	if plan.PreUndoTaken {
+		t.Fatal("expected no pre-undo commit: nothing changed since the mess was already snapshotted")
+	}
+	if plan.Target != goodHash {
+		t.Fatalf("expected target to fall back to the last good snapshot %s, got %s (messy HEAD was %s)", goodHash, plan.Target, messyHash)
+	}
+	if plan.Summary.ToRestore != 1 {
+		t.Fatalf("expected 1 file to be restored, got %d", plan.Summary.ToRestore)
+	}
+
+	if err := ApplyUndo(storePath, workTree, plan.Target); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(aPath)
+	if err != nil || string(data) != "good content" {
+		t.Fatalf("expected a.txt restored with 'good content', got %q err=%v", data, err)
+	}
+}
+
+func TestUndoAtOldestSnapshotErrorsClearly(t *testing.T) {
+	storePath, workTree := newTestStore(t)
+	writeFile(t, filepath.Join(workTree, "a.txt"), "only ever state")
+	if _, taken, err := TakeSnapshot(storePath, workTree, ReasonInterval); err != nil || !taken {
+		t.Fatalf("initial snapshot: taken=%v err=%v", taken, err)
+	}
+
+	// Nothing has changed since the only snapshot, and it has no parent to
+	// fall back to.
+	_, err := PrepareUndo(storePath, workTree, "")
+	if err == nil {
+		t.Fatal("expected an error: there's no earlier snapshot to fall back to")
+	}
+	if !strings.Contains(err.Error(), "nothing earlier to undo to") {
+		t.Fatalf("expected a clear message, got: %v", err)
+	}
+}
+
 func TestUndoToSpecificSnapshot(t *testing.T) {
 	storePath, workTree := newTestStore(t)
 	filePath := filepath.Join(workTree, "file.txt")

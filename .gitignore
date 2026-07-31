@@ -1,5 +1,39 @@
+# Build output
 /ctrlz
 /bin/
+/dist/
 *.test
+
+# Go coverage/profiling
+*.out
+*.prof
+coverage.html
+
+# Secrets — never commit these
+.env
+.env.*
+*.pem
+*.key
+*.p12
+id_rsa
+credentials.json
+.netrc
+
+# Editors/IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+
+# Internal-only docs, not part of the public project
 /docs/IMPLEMENTATION_PLAN.md
