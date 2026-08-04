@@ -4,7 +4,7 @@
 
 ctrlz is the undo button for that: it sits underneath any agent (Claude Code, Cursor, Codex, Cline, Replit's agent, whatever you're running), takes automatic, zero-config snapshots of your working directory as it works, and gets you back to before, no matter what just happened.
 
---DEMO COMING SOON...--
+![ctrlz demo](demo-video.gif)
 
 ## Why
 
