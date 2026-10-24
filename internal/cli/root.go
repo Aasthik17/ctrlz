@@ -34,4 +34,5 @@ func init() {
 	rootCmd.AddCommand(logCmd)
 	rootCmd.AddCommand(diffCmd)
 	rootCmd.AddCommand(statusCmd)
+	rootCmd.AddCommand(tuiCmd)
 }

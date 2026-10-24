@@ -87,6 +87,17 @@ func isEmptyRepoError(err error) bool {
 // no commit is made and taken is false, so history never fills up with
 // empty entries.
 func TakeSnapshot(storePath, workTree, reason string) (hash string, taken bool, err error) {
+	release, err := AcquireSnapshotLock(storePath, false)
+	if err != nil {
+		return "", false, err
+	}
+	defer release()
+	return takeSnapshot(storePath, workTree, reason)
+}
+
+// takeSnapshot is the lock-free implementation used by PrepareUndo while its
+// caller holds the exclusive project operation lock.
+func takeSnapshot(storePath, workTree, reason string) (hash string, taken bool, err error) {
 	ignoreFile, err := DefaultIgnoreFile()
 	if err != nil {
 		return "", false, err
@@ -141,7 +152,10 @@ func SnapshotCount(storePath string) (int, error) {
 // unlimited. A project with no snapshots yet returns an empty slice, not an
 // error.
 func ListSnapshots(storePath string, limit int) ([]Snapshot, error) {
-	args := []string{"log", "--pretty=format:%H|%at|%s"}
+	// One record-separator-delimited record per commit lets us obtain the
+	// metadata and shortstat in one bounded git invocation. This matters for
+	// the TUI, which initially loads 200 entries.
+	args := []string{"log", "--pretty=format:%x1e%H%x1f%at%x1f%s", "--shortstat"}
 	if limit > 0 {
 		args = append(args, "-n", strconv.Itoa(limit))
 	}
@@ -158,25 +172,37 @@ func ListSnapshots(storePath string, limit int) ([]Snapshot, error) {
 		return nil, nil
 	}
 
-	lines := strings.Split(out, "\n")
-	snapshots := make([]Snapshot, 0, len(lines))
-	for _, line := range lines {
-		parts := strings.SplitN(line, "|", 3)
+	records := strings.Split(out, "\x1e")
+	snapshots := make([]Snapshot, 0, len(records))
+	for _, record := range records {
+		record = strings.TrimSpace(record)
+		if record == "" {
+			continue
+		}
+		parts := strings.SplitN(record, "\x1f", 3)
 		if len(parts) != 3 {
-			return nil, fmt.Errorf("unexpected git log output: %q", line)
+			return nil, fmt.Errorf("unexpected git log output: %q", record)
 		}
 		epoch, err := strconv.ParseInt(parts[1], 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("parsing snapshot timestamp: %w", err)
 		}
-		stat, err := snapshotStat(storePath, parts[0])
-		if err != nil {
-			return nil, err
+		// The first line after the final field is the optional shortstat.
+		reasonAndStat := strings.SplitN(parts[2], "\n", 2)
+		reason := strings.TrimSpace(reasonAndStat[0])
+		stat := ""
+		if len(reasonAndStat) == 2 {
+			for _, line := range strings.Split(reasonAndStat[1], "\n") {
+				line = strings.TrimSpace(line)
+				if strings.Contains(line, "file") && (strings.Contains(line, "insertion") || strings.Contains(line, "deletion")) {
+					stat = line
+				}
+			}
 		}
 		snapshots = append(snapshots, Snapshot{
 			Hash:      parts[0],
 			Timestamp: time.Unix(epoch, 0),
-			Reason:    parts[2],
+			Reason:    reason,
 			Stat:      stat,
 		})
 	}
@@ -257,7 +283,7 @@ func PrepareUndo(storePath, workTree, to string) (*UndoPlan, error) {
 	}
 	original := strings.TrimSpace(head)
 
-	preUndoHash, preUndoTaken, err := TakeSnapshot(storePath, workTree, ReasonPreUndo)
+	preUndoHash, preUndoTaken, err := takeSnapshot(storePath, workTree, ReasonPreUndo)
 	if err != nil {
 		return nil, fmt.Errorf("taking pre-undo safety snapshot: %w", err)
 	}
