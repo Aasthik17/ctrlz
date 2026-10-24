@@ -128,6 +128,32 @@ func TestListSnapshotsLimit(t *testing.T) {
 	}
 }
 
+func TestListSnapshotsIncludesShortStats(t *testing.T) {
+	storePath, workTree := newTestStore(t)
+	writeFile(t, filepath.Join(workTree, "notes.txt"), "one\n")
+	if _, _, err := TakeSnapshot(storePath, workTree, ReasonInterval); err != nil {
+		t.Fatalf("first snapshot: %v", err)
+	}
+	writeFile(t, filepath.Join(workTree, "notes.txt"), "one\ntwo\n")
+	if _, _, err := TakeSnapshot(storePath, workTree, ReasonPreUndo); err != nil {
+		t.Fatalf("second snapshot: %v", err)
+	}
+
+	snapshots, err := ListSnapshots(storePath, 2)
+	if err != nil {
+		t.Fatalf("ListSnapshots: %v", err)
+	}
+	if len(snapshots) != 2 {
+		t.Fatalf("got %d snapshots, want 2", len(snapshots))
+	}
+	if snapshots[0].Reason != ReasonPreUndo || snapshots[1].Reason != ReasonInterval {
+		t.Fatalf("unexpected reasons: %#v", snapshots)
+	}
+	if snapshots[0].Stat == "" || snapshots[1].Stat == "" {
+		t.Fatalf("expected short stats, got %#v", snapshots)
+	}
+}
+
 func TestTakeSnapshotHonorsDefaultIgnoreList(t *testing.T) {
 	storePath, workTree := newTestStore(t)
 

@@ -36,7 +36,7 @@ No config file. No policy to write. Doesn't need the directory to be a git repo.
 
 ## Install
 
-**Prerequisites:** [Go](https://go.dev/dl/) 1.25+ and `git` on your `PATH` (ctrlz uses git purely as an internal storage engine — you never run git commands yourself).
+**Prerequisites:** [Go](https://go.dev/dl/) 1.26+ and `git` on your `PATH` (ctrlz uses git purely as an internal storage engine — you never run git commands yourself).
 
 ```
 go install github.com/Aasthik17/ctrlz/cmd/ctrlz@latest
@@ -66,10 +66,17 @@ ctrlz undo                       # revert to the last snapshot
 ctrlz log                        # see the snapshot timeline
 ctrlz diff <a> [b]               # see exactly what changed
 ctrlz status                     # snapshot count, store size, whether watch is active
+ctrlz tui                        # visually browse, diff, and restore snapshots
 ctrlz init                       # register a directory without watching it yet
 ```
 
 Every command takes an optional `path` (default: current directory), so day to day you'll run these with no arguments from inside the project. For what each flag does, worked examples, and a full walkthrough, see [`docs/USAGE.md`](docs/USAGE.md). For exact internal behavior — storage layout, the precise git plumbing, conflict edge cases — see [`docs/SPEC.md`](docs/SPEC.md).
+
+## Interactive recovery
+
+Run `ctrlz tui` to open a full-screen snapshot browser. Select a point in the timeline to see the diff from that state to the files on disk now, then press `u` to restore it. CtrlZ saves a safety snapshot first and requires the selected short hash to be typed before it changes any files.
+
+The browser refreshes while `ctrlz watch` is active, loads the newest 200 snapshots immediately, and can fetch older history on demand. Press `?` in the TUI for its complete keymap.
 
 ## Status
 

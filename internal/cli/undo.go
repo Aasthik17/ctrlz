@@ -36,6 +36,11 @@ var undoCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		release, err := store.AcquireSnapshotLock(storePath, true)
+		if err != nil {
+			return err
+		}
+		defer release()
 
 		plan, err := store.PrepareUndo(storePath, project.Path, undoTo)
 		if err != nil {

@@ -27,6 +27,7 @@ That's the whole workflow. Everything below is detail on top of it.
 | `ctrlz log [path]` | Lists past snapshots, newest first. |
 | `ctrlz diff [path] <a> [b]` | Shows exactly what changed between two snapshots (or a snapshot and now). |
 | `ctrlz status [path]` | Shows a quick health check: how many snapshots exist, how big the store is, whether watching is active right now. |
+| `ctrlz tui [path]` | Opens an interactive timeline to inspect and safely restore snapshots. |
 
 `path` defaults to the current directory everywhere, so in practice you'll mostly run these with no arguments from inside the project.
 
@@ -100,6 +101,31 @@ ctrlz status
 
 Prints the project id, total snapshot count, store size on disk, time of the last snapshot, and whether a `watch` is currently running for this directory. Good first command to run if something seems off, or to confirm ctrlz is actually protecting the directory before you trust it.
 
+### `ctrlz tui [path]`
+
+Opens CtrlZ's full-screen recovery console. It starts with the newest 200 snapshots, refreshes automatically every five seconds, and lets you load older history in 200-snapshot pages.
+
+```
+ctrlz tui
+ctrlz tui ../another-project
+```
+
+The left side is a snapshot timeline; selecting an entry shows the exact diff from that snapshot to the files currently on disk. Use this as the visual answer to “what would restoring this point change now?” The UI works entirely from the keyboard and also supports clicking timeline rows and mouse-wheel navigation in terminals that expose mouse events.
+
+| Key | Action |
+| --- | --- |
+| `↑`/`↓`, `j`/`k` | Select a snapshot |
+| `PgUp`/`PgDn`, `Ctrl+u`/`Ctrl+d` | Move quickly through history |
+| `u` | Prepare a restore of the selected snapshot |
+| `l` | Load the next 200 older snapshots |
+| `r` | Refresh history and watch status now |
+| `?` | Show in-app help |
+| `q`/`Esc` | Quit or close the current overlay |
+
+Restore remains deliberately difficult to trigger accidentally: pressing `u` first saves CtrlZ's normal `pre-undo` safety snapshot, then shows counts of files that will be restored, removed, and modified. Type the selected 12-character hash exactly and press Enter to apply it. `Esc` cancels the restore and leaves the safety snapshot in history.
+
+If a `ctrlz watch` process is protecting the same path, it stays running. CtrlZ pauses its snapshot writes only while the restore transaction holds the project operation lock, so it cannot snapshot the work tree halfway through recovery.
+
 ## Typical workflow
 
 ```
@@ -119,3 +145,4 @@ ctrlz undo --to <hash>       # revert to it
 - The snapshot store lives outside the watched directory (`~/.ctrlz/`), so it survives even a full `rm -rf` of the project itself. See "Storage layout" in [`SPEC.md`](SPEC.md#1-storage-layout) for exactly where.
 - ctrlz respects the project's own `.gitignore` in addition to its own default ignore list (`node_modules/`, `.venv/`, `dist/`, etc. — full list in [`SPEC.md`](SPEC.md#4-default-ignore-list)). A `.gitignore` rule that excludes a file from your repo also excludes it from ctrlz's protection — see the caveat in [`SPEC.md`](SPEC.md#2-snapshot-mechanism-verified).
 - Requires the `git` binary on `PATH`. ctrlz uses it purely as an internal storage engine — you don't run any git commands yourself.
+- The TUI follows the same ignore rules as every other CtrlZ command: files excluded by the project's `.gitignore` are not protected and cannot be recovered from its timeline.
