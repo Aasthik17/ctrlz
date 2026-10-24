@@ -84,7 +84,7 @@ This is v1: local filesystem protection on a single machine. It does not yet pro
 
 ## How it's built
 
-The full technical design, including the exact git plumbing ctrlz uses underneath, is in `docs/SPEC.md`. The build roadmap is in `docs/IMPLEMENTATION_PLAN.md`.
+The full technical design, including the exact git plumbing ctrlz uses underneath, is in `docs/SPEC.md`.
 
 ## Contributing
 
